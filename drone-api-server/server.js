@@ -14,7 +14,7 @@ app.use(express.json());
 app.use(cors());
 
 // Routes
-app.get('/api/configs/:id', async (req, res) => {
+app.get('/configs/:id', async (req, res) => {
     const droneId = Number(req.params.id);
     try {
         const response = await axios.get(CONFIG_URL);
@@ -32,7 +32,7 @@ app.get('/api/configs/:id', async (req, res) => {
     }
 });
 
-app.get('/api/status/:id', async (req, res) => {
+app.get('/status/:id', async (req, res) => {
     const droneId = Number(req.params.id);
     try {
         const logResponse = await axios.get(CONFIG_URL);
@@ -50,7 +50,7 @@ app.get('/api/status/:id', async (req, res) => {
     }
 });
 
-app.get('/api/logs', async (req, res) => {
+app.get('/logs', async (req, res) => {
     try {
         let allLogs = [];
         let currentPage = 1;
@@ -77,7 +77,7 @@ app.get('/api/logs', async (req, res) => {
     }
 });
 
-app.post("/api/logs", upload.none(), async (req, res) => {
+app.post("/logs", upload.none(), async (req, res) => {
     if (!req.body.celsius) {
         return res.status(400).send("Please provide the celsius value");
     }
