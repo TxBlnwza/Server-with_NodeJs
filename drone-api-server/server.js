@@ -52,63 +52,42 @@ app.get('/status/:id', async (req, res) => {
 
 app.get('/logs', async (req, res) => {
     try {
-        let allLogs = [];
-        let currentPage = 1;
-        let hasMoreData = true;
-        const droneId = 65011012;
-        const MAX_PAGES = 5; // จำกัดการดึงข้อมูลสูงสุด 5 หน้า เพื่อป้องกันการทำงานนานเกินไป
-
-        while (hasMoreData && currentPage <= MAX_PAGES) {
-            try {
-                const response = await axios.get(`${LOG_URL}?page=${currentPage}`, {
-                    headers: {
-                        'Authorization': 'Bearer 20250301efx',
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                // ตรวจสอบโครงสร้างข้อมูล
-                if (!response.data || !response.data.items) {
-                    throw new Error('Invalid data structure from PocketHost API');
+        const DRONE_ID = 65011012; // ใช้ drone_id ของคุณโดยตรง
+        const MAX_ITEMS = 25; // จำกัดจำนวนรายการ
+        
+        // ใช้ filter โดยตรงใน URL ของ PocketHost
+        const response = await axios.get(
+            `${LOG_URL}?filter=(drone_id=${DRONE_ID})&sort=-created&perPage=${MAX_ITEMS}`,
+            {
+                headers: {
+                    'Authorization': 'Bearer 20250301efx',
+                    'Content-Type': 'application/json'
                 }
-
-                const logs = response.data.items;
-                const filteredLogs = logs.filter(log => log.drone_id === droneId);
-                
-                if (filteredLogs.length > 0) {
-                    allLogs = [...allLogs, ...filteredLogs];
-                }
-
-                // ตรวจสอบว่ายังมีหน้าถัดไปหรือไม่
-                if (logs.length === 0 || currentPage >= MAX_PAGES) {
-                    hasMoreData = false;
-                } else {
-                    currentPage++;
-                }
-
-            } catch (pageError) {
-                console.error(`Error fetching page ${currentPage}:`, pageError.message);
-                hasMoreData = false; // หยุดการดึงหากเกิดข้อผิดพลาด
             }
+        );
+
+        // ตรวจสอบโครงสร้างข้อมูล
+        if (!response.data?.items) {
+            return res.status(404).json({ 
+                error: "No logs found",
+                message: "ไม่พบข้อมูล Log สำหรับ Drone ID นี้"
+            });
         }
 
-        // เรียงลำดับข้อมูลตามวันที่สร้าง (ใหม่ที่สุดมาก่อน)
-        const sortedLogs = allLogs.sort((a, b) => 
-            new Date(b.created) - new Date(a.created)
-        ).slice(0, 25); // จำกัดเพียง 25 รายการ
-
-        res.json(sortedLogs);
+        // ส่งกลับเฉพาะข้อมูลที่ได้เลย (ไม่ต้อง filter อีกครั้ง)
+        res.json(response.data.items);
 
     } catch (error) {
         console.error("Server Error:", {
-            message: error.message,
-            stack: error.stack,
-            request: error.config?.url
+            url: error.config?.url,
+            status: error.response?.status,
+            data: error.response?.data
         });
         
         res.status(500).json({ 
             error: "Failed to fetch logs",
-            details: error.response?.data || error.message 
+            details: error.response?.data || error.message,
+            message: "เกิดข้อผิดพลาดในการดึงข้อมูล Logs"
         });
     }
 });
