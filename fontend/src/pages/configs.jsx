@@ -11,16 +11,31 @@ const ViewConfig = () => {
 
   // ดึงค่าจาก .env
   const apiUrl = process.env.REACT_APP_API_URL;
-  const droneId = process.env.REACT_APP_DRONE_ID;
+  const droneId = process.env.REACT_APP_DRONE_ID; // จะได้ค่า "3001"
 
   useEffect(() => {
     const fetchConfig = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
+        // เรียก API โดยใช้ droneId จาก .env
         const response = await axios.get(`${apiUrl}/configs/${droneId}`);
+        
+        // ตรวจสอบว่ามีข้อมูลจริง
+        if (!response.data) {
+          throw new Error(`ไม่พบการตั้งค่าสำหรับ Drone ID: ${droneId}`);
+        }
+
         setConfig(response.data);
-        setLoading(false);
       } catch (err) {
-        setError(`เกิดข้อผิดพลาด: ${err.message}`);
+        console.error('Error fetching config:', {
+          url: `${apiUrl}/configs/${droneId}`,
+          status: err.response?.status,
+          error: err.message
+        });
+        setError(`ไม่สามารถโหลดข้อมูล: ${err.response?.data?.message || err.message}`);
+      } finally {
         setLoading(false);
       }
     };
@@ -42,51 +57,49 @@ const ViewConfig = () => {
     return (
       <div className="alert alert-danger mt-5">
         {error}
+        <button 
+          className="btn btn-sm btn-outline-danger ms-3"
+          onClick={() => window.location.reload()}
+        >
+          ลองอีกครั้ง
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="container mt-5">
+    <div className="container mt-4">
       <div className="card shadow">
         <div className="card-header bg-primary text-white">
-          <h2 className="mb-0">Drone Configuration</h2>
+          <h2>การตั้งค่า Drone (ID: {droneId})</h2>
         </div>
         <div className="card-body">
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <h5 className="fw-bold">Drone ID:</h5>
-              <p className="fs-5">{config?.drone_id || 'N/A'}</p>
+          {config && (
+            <div className="row">
+              <div className="col-md-6">
+                <h5 className="fw-bold">ชื่อ Drone:</h5>
+                <p className="fs-5">{config.drone_name || '-'}</p>
+              </div>
+              <div className="col-md-6">
+                <h5 className="fw-bold">ประเทศ:</h5>
+                <p className="fs-5">{config.country || '-'}</p>
+              </div>
+              <div className="col-md-6">
+                <h5 className="fw-bold">แสงสว่าง:</h5>
+                <p className="fs-5">{config.light || '-'}</p>
+              </div>
+              <div className="col-md-6">
+                <h5 className="fw-bold">สถานะ:</h5>
+                <p className="fs-5">{config.status || '-'}</p>
+              </div>
             </div>
-            <div className="col-md-6">
-              <h5 className="fw-bold">Drone Name:</h5>
-              <p className="fs-5">{config?.drone_name || 'N/A'}</p>
-            </div>
-          </div>
-          
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <h5 className="fw-bold">Light:</h5>
-              <p className="fs-5">{config?.light || 'N/A'}</p>
-            </div>
-            <div className="col-md-6">
-              <h5 className="fw-bold">Country:</h5>
-              <p className="fs-5">{config?.country || 'N/A'}</p>
-            </div>
-          </div>
-
-          <div className="d-flex justify-content-end mt-4">
+          )}
+          <div className="mt-4">
             <button 
-              onClick={() => navigate('/logs')}
-              className="btn btn-success me-2"
+              onClick={() => navigate('/')}
+              className="btn btn-secondary"
             >
-              ดู Logs ทั้งหมด
-            </button>
-            <button 
-              onClick={() => navigate('/add-log')}
-              className="btn btn-primary"
-            >
-              เพิ่ม Log ใหม่
+              กลับหน้าหลัก
             </button>
           </div>
         </div>

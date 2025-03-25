@@ -15,22 +15,62 @@ app.use(cors());
 
 // Routes
 app.get('/configs/:id', async (req, res) => {
-    const droneId = Number(req.params.id);
     try {
-        const response = await axios.get(CONFIG_URL);
-        const configs = response.data.data;
-        const config = configs.find(c => c.drone_id === droneId);
+      // 1. รับค่า ID จาก URL และแปลงเป็นตัวเลข
+      const droneId = Number(req.params.id);
+      console.log(`Requested Drone ID: ${droneId}`); // สำหรับ debug
+  
+      // 2. ดึงข้อมูลจาก Google Sheets
+      const response = await axios.get(CONFIG_URL);
 
-        if (!config) {
-            return res.status(404).json({ error: "Drone config not found" });
-        }
-      
-        delete config.condition;
-        res.json(config);
+  
+      // 3. ตรวจสอบโครงสร้างข้อมูล
+      if (!response.data?.data) {
+        console.error('Invalid data structure:', response.data);
+        return res.status(500).json({ 
+          error: "Invalid data format",
+          message: "รูปแบบข้อมูลจาก Google Sheets ไม่ถูกต้อง"
+        });
+      }
+  
+      // 4. ค้นหา Config โดยใช้ Drone ID
+      const config = response.data.data.find(c => {
+        // แปลงทั้งสองค่าเป็น Number ก่อนเปรียบเทียบ
+        return Number(c.drone_id) === droneId;
+      });
+  
+      // 5. ถ้าไม่พบ Config
+      if (!config) {
+        console.error('Config not found. Available IDs:', 
+          response.data.data.map(item => item.drone_id));
+        return res.status(404).json({ 
+          error: "Config not found",
+          message: `ไม่พบการตั้งค่าสำหรับ Drone ID: ${droneId}`,
+          available_ids: response.data.data.map(item => item.drone_id)
+        });
+      }
+  
+      // 6. ลบ field ที่ไม่ต้องการ
+      const { condition, ...cleanConfig } = config;
+  
+      // 7. ส่งกลับข้อมูล
+      res.json(cleanConfig);
+  
     } catch (error) {
-        res.status(500).json({ error: "Error fetching drone config" });
+      // 8. จัดการข้อผิดพลาด
+      console.error("API Error:", {
+        url: error.config?.url,
+        status: error.response?.status,
+        error: error.message
+      });
+      
+      res.status(500).json({ 
+        error: "Server error",
+        message: "เกิดข้อผิดพลาดในการดึงข้อมูล",
+        details: error.message
+      });
     }
-});
+  });
 
 app.get('/status/:id', async (req, res) => {
     const droneId = Number(req.params.id);
