@@ -10,23 +10,34 @@ const ViewLogs = () => {
 
   // ดึงค่าจาก .env
   const apiUrl = process.env.REACT_APP_API_URL;
-  const droneId = process.env.REACT_APP_DRONE_ID;
+  const droneId = parseInt(process.env.REACT_APP_DRONE_ID);
 
   useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/logs`);
+        setLoading(true);
+        setError(null);
         
+        const response = await axios.get(`${apiUrl}/logs`);
+        headers: {
+            'Authorization' ; 'Bearer 20250301efx'
+        }
+        // ตรวจสอบว่ามีข้อมูลและเป็น array
+        if (!response.data || !Array.isArray(response.data)) {
+          throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
+        }
+
         // กรองและเรียงลำดับข้อมูล
         const filteredLogs = response.data
-          .filter(log => log.drone_id === Number(droneId))
+          .filter(log => log.drone_id === droneId)
           .sort((a, b) => new Date(b.created) - new Date(a.created))
           .slice(0, 25);
         
         setLogs(filteredLogs);
-        setLoading(false);
       } catch (err) {
-        setError(`เกิดข้อผิดพลาด: ${err.message}`);
+        console.error('Error fetching logs:', err);
+        setError(`เกิดข้อผิดพลาด: ${err.response?.data?.message || err.message}`);
+      } finally {
         setLoading(false);
       }
     };
@@ -34,63 +45,78 @@ const ViewLogs = () => {
     fetchLogs();
   }, [apiUrl, droneId]);
 
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center mt-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="alert alert-danger mt-5">
-        {error}
-      </div>
-    );
-  }
+  // ฟังก์ชันจัดรูปแบบวันที่
+  const formatDate = (dateString) => {
+    try {
+      return new Date(dateString).toLocaleString('th-TH');
+    } catch {
+      return dateString; // หากรูปแบบวันที่ไม่ถูกต้อง
+    }
+  };
 
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>ประวัติการทำงาน Drone</h2>
-        <Link to="/" className="btn btn-primary">
-          กลับหน้าหลัก
-        </Link>
+        
       </div>
 
-      <div className="table-responsive">
-        <table className="table table-striped table-hover">
-          <thead className="table-dark">
-            <tr>
-              <th>วันที่บันทึก</th>
-              <th>ประเทศ</th>
-              <th>Drone ID</th>
-              <th>ชื่อ Drone</th>
-              <th>อุณหภูมิ (°C)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.length > 0 ? (
-              logs.map((log, index) => (
-                <tr key={index}>
-                  <td>{new Date(log.created).toLocaleString()}</td>
-                  <td>{log.country}</td>
-                  <td>{log.drone_id}</td>
-                  <td>{log.drone_name}</td>
-                  <td>{log.celsius}</td>
-                </tr>
-              ))
-            ) : (
+      {loading ? (
+        <div className="d-flex justify-content-center my-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="alert alert-danger">
+          {error}
+          <button 
+            className="btn btn-sm btn-outline-danger ms-3"
+            onClick={() => window.location.reload()}
+          >
+            ลองใหม่
+          </button>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <table className="table table-striped table-hover">
+            <thead className="table-dark">
               <tr>
-                <td colSpan="5" className="text-center">ไม่พบข้อมูล</td>
+                <th>วันที่บันทึก</th>
+                <th>ประเทศ</th>
+                <th>Drone ID</th>
+                <th>ชื่อ Drone</th>
+                <th>อุณหภูมิ (°C)</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {logs.length > 0 ? (
+                logs.map((log, index) => (
+                  <tr key={index}>
+                    <td>{formatDate(log.created)}</td>
+                    <td>{log.country || '-'}</td>
+                    <td>{log.drone_id || '-'}</td>
+                    <td>{log.drone_name || '-'}</td>
+                    <td>{log.celsius || '-'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="text-center py-4">
+                    <div className="text-muted">ไม่พบข้อมูลการทำงาน</div>
+                    <button 
+                      className="btn btn-sm btn-outline-primary mt-2"
+                      onClick={() => window.location.reload()}
+                    >
+                      โหลดใหม่
+                    </button>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

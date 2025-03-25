@@ -56,24 +56,60 @@ app.get('/logs', async (req, res) => {
         let currentPage = 1;
         let hasMoreData = true;
         const droneId = 65011012;
+        const MAX_PAGES = 5; // จำกัดการดึงข้อมูลสูงสุด 5 หน้า เพื่อป้องกันการทำงานนานเกินไป
 
-        while (hasMoreData) {
-            const response = await axios.get(`${LOG_URL}?page=${currentPage}`);
-            const logs = response.data.items;
+        while (hasMoreData && currentPage <= MAX_PAGES) {
+            try {
+                const response = await axios.get(`${LOG_URL}?page=${currentPage}`, {
+                    headers: {
+                        'Authorization': 'Bearer 20250301efx',
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-            if (logs && logs.length > 0) {
+                // ตรวจสอบโครงสร้างข้อมูล
+                if (!response.data || !response.data.items) {
+                    throw new Error('Invalid data structure from PocketHost API');
+                }
+
+                const logs = response.data.items;
                 const filteredLogs = logs.filter(log => log.drone_id === droneId);
-                allLogs = allLogs.concat(filteredLogs);
-                currentPage++;
-            } else {
-                hasMoreData = false;
+                
+                if (filteredLogs.length > 0) {
+                    allLogs = [...allLogs, ...filteredLogs];
+                }
+
+                // ตรวจสอบว่ายังมีหน้าถัดไปหรือไม่
+                if (logs.length === 0 || currentPage >= MAX_PAGES) {
+                    hasMoreData = false;
+                } else {
+                    currentPage++;
+                }
+
+            } catch (pageError) {
+                console.error(`Error fetching page ${currentPage}:`, pageError.message);
+                hasMoreData = false; // หยุดการดึงหากเกิดข้อผิดพลาด
             }
         }
 
-        res.json(allLogs);
+        // เรียงลำดับข้อมูลตามวันที่สร้าง (ใหม่ที่สุดมาก่อน)
+        const sortedLogs = allLogs.sort((a, b) => 
+            new Date(b.created) - new Date(a.created)
+        ).slice(0, 25); // จำกัดเพียง 25 รายการ
+
+        res.json(sortedLogs);
+
     } catch (error) {
-        console.error("Error fetching drone logs:", error.message);
-        res.status(500).json({ error: "Error fetching drone logs" });
+        console.error("Server Error:", {
+            message: error.message,
+            stack: error.stack,
+            request: error.config?.url
+        });
+        
+        res.status(500).json({ 
+            error: "Failed to fetch logs",
+            details: error.response?.data || error.message 
+        });
     }
 });
 
