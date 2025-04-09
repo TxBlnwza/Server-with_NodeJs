@@ -26,7 +26,7 @@ const ConfigPage = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const droneId = process.env.REACT_APP_DRONE_ID || 3001;
+        const droneId = process.env.REACT_APP_DRONE_ID || 65011012;
         const response = await axios.get(
           `${process.env.REACT_APP_API_URL}/configs/${droneId}`
         );
